@@ -147,7 +147,15 @@ npm run db:up && npm run migration:show                   # base viva y migracio
 > `switch`, donde su única escritura permitida en el frontend es borrar handlers MSW ya
 > sustituidos y tocar el `.env`. Cualquier otra escritura en el frontend -> §7.2.
 
-### 3.3 Stack objetivo (del repo, no re-decidir)
+### 3.3 Arquitectura objetivo
+
+**Monolito modular pragmático**: un deployable, una base PostgreSQL, un módulo Nest por módulo
+funcional del ERP, con fronteras explícitas. Las cuatro reglas (comunicación solo vía servicio
+público, `exports` como frontera, FK en la base sin relaciones TypeORM cruzadas, dependencias
+acíclicas) están en `references/06-modular-monolith.md` y son **de obligado cumplimiento** en
+los modos `plan`, `schema` e `implement`.
+
+### 3.4 Stack objetivo (del repo, no re-decidir)
 
 NestJS 11 · TypeORM + PostgreSQL 16 · **Zod v4 para validación** (el repo ya lo usa en
 `src/config/env.ts`; no hay `class-validator` y no se introduce: además refleja los esquemas
@@ -166,10 +174,13 @@ Zod del frontend) · Jest + supertest · ESLint + Prettier (`singleQuote`, `trai
    `synchronize` permanece en `false`.
 4. **Las reglas de negocio viven en el servicio**, no en el controlador ni en la entidad.
    Cada regla cita su ID del análisis (`R01`) en un comentario.
-5. **Errores idénticos al mock**, incluido el campo `code`. El frontend enciende mensajes
+5. **Fronteras de módulo inviolables.** Un módulo nunca alcanza el repositorio, la entidad ni
+   la tabla de otro: pide al servicio que el módulo dueño exporta
+   (`references/06-modular-monolith.md`).
+6. **Errores idénticos al mock**, incluido el campo `code`. El frontend enciende mensajes
    específicos con ese `code`: cambiarlo es una rotura silenciosa.
-6. **Conformidad antes que conmutación.** No se retira un mock sin su e2e verde.
-7. **Idempotencia.** Re-ejecutar un modo actualiza en sitio; nunca duplica módulo, entidad ni
+7. **Conformidad antes que conmutación.** No se retira un mock sin su e2e verde.
+8. **Idempotencia.** Re-ejecutar un modo actualiza en sitio; nunca duplica módulo, entidad ni
    migración. Antes de crear, buscar lo existente (`src/modules/<modulo>/`).
 
 ---
@@ -184,8 +195,10 @@ Zod del frontend) · Jest + supertest · ESLint + Prettier (`singleQuote`, `trai
 2. Leer las reglas `Rnn` del `00-analysis.md` y mapear cada una al endpoint donde se aplica.
 3. Derivar el modelo de datos: tablas, columnas, tipos, nulabilidad, índices, unicidad,
    claves foráneas y qué se guarda vs. qué se calcula.
-4. Detectar colisiones con módulos backend ya existentes (entidades compartidas: `User`,
-   `Location`). Reutilizar la entidad existente; **jamás** duplicar tabla.
+4. Detectar entidades de otros módulos que este necesita (`User`, `Location`). Determinar el
+   **módulo dueño** en el registry: este módulo guardará solo el id y consultará por el
+   servicio del dueño. **Jamás** duplicar la tabla ni importar la entidad ajena
+   (`references/06-modular-monolith.md`).
 5. Escribir `docs/api/<modulo>/plan.md` con `assets/module-plan-template.md`: endpoints,
    modelo, reglas, índices, riesgos y preguntas abiertas.
 6. **CHECKPOINT:** presentar el plan (tablas, endpoints, reglas, migraciones previstas) y
@@ -219,7 +232,8 @@ Orden obligatorio, de dentro hacia fuera:
 3. **Controlador**: rutas exactas del contrato, `ZodValidationPipe` en params/query/body,
    códigos HTTP explícitos (`@HttpCode(204)` en delete), sin lógica.
 4. **Guards de permisos** con la acción del contrato (`can_manage_locations`).
-5. **Módulo Nest** y registro en `AppModule`.
+5. **Módulo Nest** con `exports` mínimos (el servicio, nunca el repositorio) y registro en
+   `AppModule`.
 6. **Tests unitarios** del servicio: una regla de negocio, un test. Repositorio mockeado.
 7. Bootstrap global si es el primer módulo: ver `references/02-nest-module-conventions.md`
    §Bootstrap (prefijo `api/v1`, filtro de errores RFC 7807, pipe Zod global, CORS, paginación).
@@ -278,7 +292,7 @@ del backend, el endpoint no está implementado; si falta la del e2e, no está ve
 | 7.1 | No hay contrato ni handlers para el módulo | **ABORTAR**. El módulo aún no pasó por `blueprint-module`. Proponer arrancar por ahí |
 | 7.2 | Una escritura apunta al frontend fuera de lo permitido en `switch` | **ABORTAR**. Reportar |
 | 7.3 | El contrato es inconsistente o imposible de cumplir | **PARAR**. Documentar el choque y volver a `blueprint-module [contracts]`. Prohibido "arreglarlo" solo en el backend |
-| 7.4 | La entidad ya existe (módulo compartido) | Reutilizar y extender con migración aditiva. Nunca crear una tabla paralela |
+| 7.4 | La entidad pertenece a otro módulo | Guardar el id + FK y consultar por el servicio del dueño. Si falta un método, **añadirlo al módulo dueño**; nunca rodear la frontera ni crear una tabla paralela |
 | 7.5 | La migración generada incluye cambios ajenos al módulo | **PARAR**. Señal de esquema desincronizado; revisar antes de aplicar |
 | 7.6 | e2e falla por diferencia con el mock | Corregir el backend. Si el mock está mal, §7.3 |
 | 7.7 | Falta una regla de negocio en el análisis | Marcar supuesto, implementar lo mínimo defendible y anotarlo en el resumen |
@@ -302,4 +316,5 @@ estado de los tests y siguiente paso. Resumen completo solo al final de `conform
 | `references/03-persistence.md` | modo `schema` |
 | `references/04-conformance-tests.md` | modo `conformance` |
 | `references/05-mock-retirement.md` | modo `switch` |
+| `references/06-modular-monolith.md` | modos `plan`, `schema` e `implement`, siempre |
 | `assets/*` | plantillas y snippets |

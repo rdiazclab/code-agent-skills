@@ -58,12 +58,18 @@ export class Location {
   (`LOCATION_HAS_ACTIVE_USERS`) debe poder cumplirse.
 - Relaciones cargadas de forma explícita (`relations: [...]` o `QueryBuilder`); nada de
   `eager: true`, que arrastra datos que el contrato no pide.
+- `@ManyToOne`/`@OneToMany` solo **dentro** del mismo módulo. Cruzar módulos es id + FK.
 
-## Entidades compartidas entre módulos
+## Entidades de otros módulos
 
-`User` y `Location` los consumen casi todos los módulos. La primera vez se crean en su módulo
-dueño; después se **importan**, nunca se redefinen. Extensiones posteriores: migración
-aditiva con columnas nulables o con default, jamás una tabla paralela.
+`User` y `Location` los consumen casi todos los módulos, pero **pertenecen a `parametrizacion`**.
+Los demás módulos guardan `userId` / `locationId` con su FK en la base y consultan los datos
+por el servicio que el módulo dueño exporta: no importan la entidad ajena ni la registran en su
+`forFeature`, y no declaran `@ManyToOne` hacia ella. Extensiones de una entidad ajena: migración
+aditiva **en su módulo dueño**, jamás una tabla paralela.
+
+Las reglas completas, con ejemplos de lo prohibido y lo permitido, en
+`06-modular-monolith.md`.
 
 ## Transacciones
 

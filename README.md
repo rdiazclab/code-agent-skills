@@ -71,8 +71,10 @@ ln -s ~/work/code-agent-skills/contract-to-api  ~/.claude/skills/contract-to-api
 
 - **Frontend nuevo:** React + Vite + TS estricto, TanStack Query, react-hook-form + Zod,
   Tailwind, MSW, Vitest + Testing Library.
-- **Backend:** NestJS 11 + TypeORM + PostgreSQL 16, validación con **Zod** (no
-  `class-validator`), migraciones siempre explícitas, Jest + supertest.
+- **Backend:** **monolito modular** (un deployable, una base, un módulo Nest por módulo
+  funcional, con fronteras verificadas por lint) sobre NestJS 11 + TypeORM + PostgreSQL 16,
+  validación con **Zod** (no `class-validator`), migraciones siempre explícitas,
+  Jest + supertest.
 - **API:** `/api/v1`, recursos plurales kebab-case, colecciones con envelope `{ data, meta }`,
   errores estilo RFC 7807 con `code` estable, dinero en unidades menores + `currency`,
   fechas ISO-8601 UTC.
